@@ -1,37 +1,61 @@
 function [ A ] = HoughFindCircles( I_edge )
     
+    % magic
+    threshold = 0.8;
+    eps = 1;
+    
+    % image dim
     a_max = length(I_edge(1,:));
     b_max = length(I_edge(:,1));
     r_max = min(a_max, b_max) / 2;
-
-    nz = find(I_edge);
-    [nz_x, nz_y] = ind2sub(size(I_edge),nz);
     
-    % dims: x_0, y_0, r
-    A = zeros(a_max, b_max, r_max);
+    % dims: y_0, x_0, r
+    A = zeros(b_max, a_max, r_max);
     
-    for i=1:length(nz_x)
-        for r=1:r_max
-            votes = vote_for(nz_x(i), nz_y(i), r, a_max, b_max);
-            A(:,:,r) = A(:,:,r) + votes;
-        end
+    % create vote matrix
+    for r=4:r_max
+        vote_kernel = CreateCircleKernel(r);
+        norm_factor = sum(vote_kernel(:));
+        
+        votes = conv2(I_edge, vote_kernel);
+        votes = votes(1+r : b_max+r , 1+r : a_max+r);
+        votes = votes ./ norm_factor;
+        A(:,:,r) = A(:,:,r) + votes;
     end
     
-    imshow(I_edge);
+    % find local maxima
+     curr = 1;
+     [sortedA, sortedInds] = sort(A(:),'descend');
+     while sortedA(curr) > threshold
+         top_vote_idx = sortedInds(curr);
+         [y,x,r] = ind2sub(size(A), top_vote_idx);
+         area = A(y-eps:y+eps , x-eps:x+eps , r-eps:r+eps);
+         max_in_area = max(area(:));
+         if max_in_area > sortedA(curr)
+             A(top_vote_idx) = 0;
+             [sortedA, sortedInds] = sort(A(:),'descend');
+         else
+             curr = curr + 1;
+         end
+     end
+     
+    % print
+    curr = curr - 1;
+    disp(['number of circles found:', curr]);
     [sortedA, sortedInds] = sort(A(:),'descend');
-    top_votes = sortedInds(1:25);
+    top_votes = sortedInds(1:curr);
+    figure();
+    imshow(I_edge);
     [Y,X,R] = ind2sub(size(A), top_votes);
     viscircles([X Y], R);
-    title('hough circle detection');
+    title(['hough circle detection, found ', num2str(curr), ' circles']);
 end
 
-function [vote_metrix] = vote_for(x, y, r, a_max, b_max)
-    vote_metrix = zeros(a_max, b_max);
+function [circle_kernel] = CreateCircleKernel(r)
+    circle_kernel = zeros(r*2, r*2);
     for theta=1:360
-        a = round(x - r * cos(theta * pi / 180));
-        b = round(y - r * sin(theta * pi / 180));
-        if a > 0 && b > 0 && a < a_max && b < b_max
-            vote_metrix(a,b) = 1;
-        end
+        a = round(r - r * cos(theta * pi / 180));
+        b = round(r - r * sin(theta * pi / 180));
+        circle_kernel(a+1,b+1) = 1;
     end
 end
