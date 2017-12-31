@@ -8,12 +8,18 @@ function [ ret_val ] = detectEdgesConv( I )
     
     Ig = sqrt(Ix .^ 2 + Iy .^ 2);
     
+    % normalize
     max_val = max(Ig(:));
     min_val = min(Ig(:));
     
     Ig_norm = (Ig - min_val) ./ max_val;
     
+    % binary over threshold
     I_edge = arrayfun(@(x) x > 0.25, Ig_norm);
+    
+    % check if needed
+    figure();
+    imshow(I_edge);
     
     ret_val = I_edge;
 end
