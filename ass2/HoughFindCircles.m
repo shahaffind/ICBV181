@@ -1,13 +1,15 @@
-function [ A ] = HoughFindCircles( I_edge )
+function [] = HoughFindCircles( I_edge )
     
     % magic
     threshold = 0.8;
-    eps = 1;
+    eps = 3;
     
-    % image dim
+    % hough max dim
+    % assuming center of circle is within pic dim, and the radius is less
+    % than half the picture size
     a_max = length(I_edge(1,:));
     b_max = length(I_edge(:,1));
-    r_max = min(a_max, b_max) / 2;
+    r_max = round(min(a_max, b_max) / 2);
     
     % dims: y_0, x_0, r
     A = zeros(b_max, a_max, r_max);
@@ -17,38 +19,38 @@ function [ A ] = HoughFindCircles( I_edge )
         vote_kernel = CreateCircleKernel(r);
         norm_factor = sum(vote_kernel(:));
         
-        votes = conv2(I_edge, vote_kernel);
-        votes = votes(1+r : b_max+r , 1+r : a_max+r);
-        votes = votes ./ norm_factor;
+        votes = conv2(I_edge, vote_kernel); % vote
+        votes = votes(1+r : b_max+r , 1+r : a_max+r); % cut size of pic
+        votes = votes ./ norm_factor; % normalize to [0,1]
         A(:,:,r) = A(:,:,r) + votes;
     end
     
     % find local maxima
-     curr = 1;
-     [sortedA, sortedInds] = sort(A(:),'descend');
-     while sortedA(curr) > threshold
-         top_vote_idx = sortedInds(curr);
-         [y,x,r] = ind2sub(size(A), top_vote_idx);
-         area = A(y-eps:y+eps , x-eps:x+eps , r-eps:r+eps);
-         max_in_area = max(area(:));
-         if max_in_area > sortedA(curr)
-             A(top_vote_idx) = 0;
-             [sortedA, sortedInds] = sort(A(:),'descend');
-         else
-             curr = curr + 1;
-         end
-     end
-     
+    [~, sortedInds] = sort(A(:),'descend');
+    for i=1:length(sortedInds)
+        curr_idx = sortedInds(i);
+        if A(curr_idx) < threshold
+            break; % all other values will be lower than threshold
+        end
+        [y,x,r] = ind2sub(size(A), curr_idx);
+        area = A(y-eps:y+eps , x-eps:x+eps , r-eps:r+eps);
+        max_in_area = max(area(:));
+        if A(curr_idx) >= max_in_area
+            A(curr_idx) = 2; % ~inf, since the matrix is normalize to [0,1]
+        end
+    end
+    
+    % find the local maxima from last step (will be with the value of 2)
+    B = A == 2;
+    circles_idx = find(B);
+    fprintf('number of circles found: %d\n', length(circles_idx));
+    
     % print
-    curr = curr - 1;
-    disp(['number of circles found:', curr]);
-    [sortedA, sortedInds] = sort(A(:),'descend');
-    top_votes = sortedInds(1:curr);
     figure();
-    imshow(I_edge);
-    [Y,X,R] = ind2sub(size(A), top_votes);
-    viscircles([X Y], R);
-    title(['hough circle detection, found ', num2str(curr), ' circles']);
+    imshow(imread('coins.png'));
+    [Y,X,R] = ind2sub(size(A), circles_idx);
+    viscircles([X Y], R, 'color', 'b');
+    title(['hough circle detection, found ', num2str(length(circles_idx)), ' circles']);
 end
 
 function [circle_kernel] = CreateCircleKernel(r)
