@@ -12,7 +12,7 @@ function [ ret_val ] = detectEdgesConv( I )
     max_val = max(Ig(:));
     min_val = min(Ig(:));
     
-    Ig_norm = (Ig - min_val) ./ max_val;
+    Ig_norm = (Ig - min_val) ./ (max_val - min_val);
     
     % binary over threshold
     I_edge = arrayfun(@(x) x > 0.25, Ig_norm);
