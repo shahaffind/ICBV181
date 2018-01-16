@@ -1,7 +1,7 @@
 function [segmentation_array] = Segment(I)
     % magic numbers
     n_labels = 24;
-    max_iter = 10000;
+    max_iter = 1000;
     min_change = 10^-5;
     
     % init
@@ -32,10 +32,6 @@ function [segmentation_array] = Segment(I)
     
     % reshape into the image form
     segmentation_array = reshape(labels, size(I));
-    
-    % debug
-    imshow(segmentation_array / n_labels);
-    disp(iter);
 end
 
 function [p_0] = init_p_0(I, n_labels)
@@ -64,7 +60,6 @@ function [w] = CreateWindow(size)
     end
     
     w = circshift(w, ceil(size / 2)); % moves max to idx 1
-    
     w = w / sum(w); % normalize to sum(w) = 1
 end
 
@@ -81,7 +76,6 @@ function [s] = calculate_support(p_k, im_dim)
         support_row = conv2(p_k_label, ker, 'same');
         s(j,:) = support_row(:);
     end
-    
 end
 
 function [p_k_next] = calculate_p_next(p_k, s_k)
